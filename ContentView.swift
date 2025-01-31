@@ -30,56 +30,37 @@ struct ContentView: View {
         }
     }
 
+    
     func generateText() {
-        do {
-            // Charger le tokenizer
-            let tokenizer = try loadTokenizer()
-
-            // Afficher la configuration du tokenizer pour débogage
-            print("Tokenizer loaded successfully: \(tokenizer.tokenToId)")
-
-            // Créez une instance du modèle
-            let model = try Llama_3_2_3B_Instruct(configuration: .init())
-            
-            // Préparez les données d'entrée
-            let inputIds = try MLMultiArray(shape: [1, 1], dataType: .int32)
-            inputIds[0] = 1  // ID de démarrage pour la génération de texte
-
-            let causalMask = try MLMultiArray(shape: [1, 1, 1, 1], dataType: .float16)
-            causalMask[0] = 1.0  // Masque causal pour la génération de texte
-
-            // Créez l'état nécessaire pour la génération de texte
-            let modelState = model.makeState()
-            
-            // Créez l'entrée du modèle
-            let input = Llama_3_2_3B_InstructInput(inputIds: inputIds, causalMask: causalMask)
-
-            // Faites la prédiction pour générer du texte
-            let prediction = try model.prediction(input: input, using: modelState)
-            
-            // Utilisez les résultats de la prédiction
-            if let logits = prediction.logits as? MLMultiArray {
-                // Convertir les logits en texte généré
-                generatedText = convertLogitsToText(logits, tokenizer: tokenizer)
-            }
-        } catch {
-            errorMessage = "Erreur lors de la génération de texte : \(error.localizedDescription)"
+        var tokenizer: Tokenizer?
+        do{
+            tokenizer = try loadTokenizer()
+            print("Tokenizer load successfully");
+        }catch{
+            print("Error : Failed to load Tokenizer : \(error.localizedDescription)")
         }
+        if let tokenizer = tokenizer {
+            let text = "<|begin_of_text|> Hello world <|end_of_text|>"
+            let encodedTokens = textToTokens(text: text, using: tokenizer)
+            print("Texte encodé en tokens: \(encodedTokens)")
+            let decodedText = tokenToText(tokenids: encodedTokens, using: tokenizer)
+                    print("Tokens décodés en texte: \(decodedText)")
+                }
     }
-
-    func convertLogitsToText(_ logits: MLMultiArray, tokenizer: Tokenizer) -> String {
-        // Exemple de décodage greedy
-        var tokenIds: [Int] = []
-        
-        // Suppose que les logits sont de dimensions [1, 1, vocab_size]
-        for i in 0..<logits.count {
-            // Trouver l'index du token avec la probabilité la plus élevée
-            let maxIndex = logits[i].doubleValue
-            tokenIds.append(Int(maxIndex))
+    func textToTokens(text: String, using tokenizer: Tokenizer) -> [Int]{
+        let tokens = text.split(separator: " ")
+        var tokenIds=[Int]()
+        for token in tokens{
+            if let id=tokenizer.tokenToId[String(token)]{
+                tokenIds.append(id)
+            }else{
+                print("Error token \(token) not found")
+            }
         }
-        
-        // Convertir les tokens en texte
-        return tokenizer.decode(tokenIds)
+        return tokenIds;
+    }
+    func tokenToText(tokenids: [Int], using tokenizer: Tokenizer)-> String{
+        return tokenizer.decode(tokenids);
     }
 }
 #Preview {
